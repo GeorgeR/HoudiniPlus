@@ -15,15 +15,9 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "HoudiniPlus",
+			"Name": "HoudiniPlusEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "HoudiniEngine",
-			"Enabled": true
 		}
 	]
 }
