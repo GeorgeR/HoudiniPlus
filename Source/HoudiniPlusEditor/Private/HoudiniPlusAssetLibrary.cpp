@@ -1,3 +1,5 @@
+#include "HoudiniPlusPrivatePCH.h"
+
 #include "HoudiniPlusAssetLibrary.h"
 
 const uint32 UHoudiniPlusAssetLibrary::PersistenceFormatVersion = 2u;
@@ -115,6 +117,7 @@ void UHoudiniPlusAssetLibrary::OnAssetSet()
     if (!TryLoadAsset())
         return;
 
+    HAPI_Result Result = HAPI_RESULT_FAILURE;
     //FHAPIInterface::Get()->Execute([&](HAPI_Session* Session) {
     //    HAPI_Result Result = HAPI_RESULT_FAILURE;
 

@@ -148,7 +148,7 @@ public class HoudiniPlusEditor : ModuleRules
 
     public HoudiniPlusEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = ModuleRules.PCHUsageMode.UseSharedPCHs;
 
 	    // Check if we are compiling on unsupported platforms.
 	    if (Target.Platform != UnrealTargetPlatform.Win64 &&
@@ -174,11 +174,11 @@ public class HoudiniPlusEditor : ModuleRules
 	    }
 
         // Find the HAPI include directory
-        var HAPIIncludePath = HFSPath + "/toolkit/include/HAPI";
+        var HAPIIncludePath = HFSPath + "/toolkit/include";
         if (!Directory.Exists(HAPIIncludePath))
         {
             // Add the custom include path as well in case the toolkit path doesn't exist yet.
-            HAPIIncludePath = HFSPath + "/custom/houdini/include/HAPI";
+            HAPIIncludePath = HFSPath + "/custom/houdini/include";
 
             if (!Directory.Exists(HAPIIncludePath))
             {

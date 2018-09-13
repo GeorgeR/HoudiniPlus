@@ -5,7 +5,7 @@
 
 #include "HoudiniPlusAssetInfo.h"
 
-#include "HAPI_Common.h"
+#include "HAPI/HAPI_Common.h"
 
 #include "HoudiniPlusAssetLibrary.generated.h"
 

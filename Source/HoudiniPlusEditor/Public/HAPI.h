@@ -1,15 +1,21 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Logging/TokenizedMessage.h"
 
-/**
- * 
- */
-class HOUDINIPLUSEDITOR_API HAPI
+struct HAPI_Session;
+enum HAPI_Result;
+
+class HOUDINIPLUSEDITOR_API FHAPI 
+    : public TSharedFromThis<FHAPI>
 {
 public:
-	HAPI();
-	~HAPI();
+    static FORCEINLINE TSharedPtr<FHAPI> Get();
+
+    FORCEINLINE bool Call(TFunction<bool(HAPI_Session*)> Func);
+
+    FORCEINLINE bool SafeCall(TFunction<HAPI_Result(HAPI_Session*)> Func, EMessageSeverity::Type Severity = EMessageSeverity::Error);
+
+private:
+    HAPI_Session* GetSession();
 };
