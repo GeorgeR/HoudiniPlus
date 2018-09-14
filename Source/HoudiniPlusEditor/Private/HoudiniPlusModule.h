@@ -21,9 +21,9 @@ public:
 
     virtual const HAPI_Session* GetSession() override;
 
-    bool StartSession(HAPI_Session*& Session);
-    bool StopSession(HAPI_Session*& Session);
-    bool RestartSession();
+    //bool StartSession(HAPI_Session*& Session);
+    //bool StopSession(HAPI_Session*& Session);
+    //bool RestartSession();
 
 private:
     HAPI_Result HAPIState;

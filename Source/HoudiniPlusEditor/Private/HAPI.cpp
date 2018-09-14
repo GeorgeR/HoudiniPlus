@@ -1,23 +1,28 @@
 #include "HoudiniPlusPrivatePCH.h"
 
+#include "HoudiniPlusSettings.h"
 #include "HAPI.h"
 
-TSharedPtr<FHAPI> FHAPI::Get()
+#if PLATFORM_WINDOWS
+    #include "WindowsHWrapper.h"
+    #ifdef GetGeoInfo
+        #undef GetGeoInfo
+    #endif
+#endif
+
+TSharedPtr<FHAPI> FHAPI::Instance;
+
+FHAPI::FHAPI()
 {
-    static TSharedPtr<FHAPI> Instance;
+    Handle = MakeShareable(new FHAPIHandle);
+
     if (!Instance.IsValid())
-    {
-
-    }
-
-    return Instance;
+        Instance = this->AsShared();
 }
 
-bool FHAPI::Call(TFunction<bool(HAPI_Session*)> Func)
+FHAPI::~FHAPI()
 {
-    ensure(Func);
 
-    return Func(GetSession());
 }
 
 bool FHAPI::SafeCall(TFunction<HAPI_Result(HAPI_Session*)> Func, EMessageSeverity::Type Severity /*= EMessageSeverity::Error*/)
@@ -38,3 +43,6 @@ HAPI_Session* FHAPI::GetSession()
 {
     return nullptr;
 }
+
+
+

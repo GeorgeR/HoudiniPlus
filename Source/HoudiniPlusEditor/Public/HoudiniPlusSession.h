@@ -2,8 +2,14 @@
 
 #include "CoreMinimal.h"
 
-class HOUDINIPLUSEDITOR_API FHoudiniPlusSession
+#include "HoudiniPlusSession.generated.h"
+
+UCLASS(BlueprintType, Abstract)
+class HOUDINIPLUSEDITOR_API UHoudiniPlusSession
+    : public UObject
 {
+    GENERATED_BODY()
+
 public:
 	
 	

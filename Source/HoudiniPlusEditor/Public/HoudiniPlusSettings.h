@@ -3,9 +3,9 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 
-#include "HoudiniPlusSettings.generated.h"
+#include "HoudiniPlusSession.h"
 
-class UHoudiniPlusSession;
+#include "HoudiniPlusSettings.generated.h"
 
 UCLASS(config = Engine, defaultconfig)
 class HOUDINIPLUSEDITOR_API UHoudiniPlusSettings 
@@ -19,6 +19,12 @@ public:
 
     UPROPERTY(GlobalConfig, EditAnywhere, Category = "Initialization")
     int32 CookingThreadStackSize;
+
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Location", meta = (DisplayName = "Use custom Houdini location (requires restart)."))
+    bool bUseCustomHoudiniLocation;
+
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Location", meta = (DisplayName = "Custom Houdini Location."))
+    FDirectoryPath CustomHoudiniLocation;
 
     virtual ~UHoudiniPlusSettings();
 

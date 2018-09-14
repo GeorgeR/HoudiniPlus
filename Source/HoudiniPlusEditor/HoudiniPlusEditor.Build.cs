@@ -14,7 +14,7 @@ public class HoudiniPlusEditor : ModuleRules
         if (!bIsRelease)
         {
             // Only use the preset build folder
-            System.Console.WriteLine("Using HFS:" + HFSPath);
+            Console.WriteLine("Using HFS:" + HFSPath);
             return HFSPath;
         }
 
