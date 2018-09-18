@@ -1,33 +1,46 @@
-#include "HoudiniPlusPrivatePCH.h"
+#include "HappyPrivatePCH.h"
 
-#include "HoudiniPlusModule.h"
-#include "HoudiniPlusSettings.h"
+#include "HappyModule.h"
+#include <Paths.h>
+#include <WindowsPlatformProcess.h>
+#include "HoudiniAPI.h"
 #include "HAPI.h"
 
-#define LOCTEXT_NAMESPACE "FHoudiniPlusModule"
+#define LOCTEXT_NAMESPACE "FHappyModule"
 
-DEFINE_LOG_CATEGORY(LogHoudiniPlus);
+DEFINE_LOG_CATEGORY(LogHappy);
 
-FHoudiniPlusModule::FHoudiniPlusModule()
+FHappyModule::FHappyModule()
+    : HAPIHandle(nullptr)
 {
 
 }
 
-void FHoudiniPlusModule::StartupModule()
+void FHappyModule::StartupModule()
 {
-    UE_LOG(LogHoudiniPlus, Log, TEXT("Starting HoudiniPlus."));
+    FString LibPath = TEXT(PREPROCESSOR_TO_STRING(HAPI_LIB_PATH));
+    if (FPaths::FileExists(LibPath))
+        HAPIHandle = FPlatformProcess::GetDllHandle(*LibPath);
 
-    ensure(FHAPI::Get().IsValid());
+    ensure(HAPIHandle);
+    FHoudiniApi::Bind(HAPIHandle);
 
-    auto SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>(TEXT("Settings"));
-    if (SettingsModule)
-    {
-        SettingsModule->RegisterSettings(
-            "Project", "Plugins", "Houdini Plus",
-            LOCTEXT("SettingsName", "Houdini Plus"),
-            LOCTEXT("SettingsDescription", "Configure the Houdini Plus plugin."),
-            GetMutableDefault<UHoudiniPlusSettings>());
-    }
+    HAPI = MakeShareable(new FHAPI([&]() { return this->Session->GetHandle(); }));
+
+    //bHAPIVersionMismatch = false;
+    //HAPIState = HAPI_RESULT_NOT_INITIALIZED;
+
+    //UE_LOG(LogHappy, Log, TEXT("Starting HoudiniPlus."));
+
+    //auto SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>(TEXT("Settings"));
+    //if (SettingsModule)
+    //{
+    //    SettingsModule->RegisterSettings(
+    //        "Project", "Plugins", "Houdini Plus",
+    //        LOCTEXT("SettingsName", "Houdini Plus"),
+    //        LOCTEXT("SettingsDescription", "Configure the Houdini Plus plugin."),
+    //        GetMutableDefault<UHoudiniPlusSettings>());
+    //}
 
     //{
     //    //void* HAPILibraryHandle = 
@@ -91,13 +104,21 @@ void FHoudiniPlusModule::StartupModule()
     //}
 }
 
-void FHoudiniPlusModule::ShutdownModule()
+void FHappyModule::ShutdownModule()
 {
-    UE_LOG(LogHoudiniPlus, Log, TEXT("Shutting down HoudiniPlus."));
+    FHoudiniApi::Unbind();
 
-    auto SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>(TEXT("Settings"));
-    if (SettingsModule)
-        SettingsModule->UnregisterSettings(TEXT("Project"), TEXT("Plugins"), TEXT("HoudiniPlus"));
+    if (HAPIHandle != nullptr)
+    {
+        FPlatformProcess::FreeDllHandle(HAPIHandle);
+        HAPIHandle = nullptr;
+    }
+
+    //UE_LOG(LogHoudiniPlus, Log, TEXT("Shutting down HoudiniPlus."));
+
+    //auto SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>(TEXT("Settings"));
+    //if (SettingsModule)
+    //    SettingsModule->UnregisterSettings(TEXT("Project"), TEXT("Plugins"), TEXT("HoudiniPlus"));
 
     //if (Scheduler.IsValid())
     //    Scheduler->Stop();
@@ -119,6 +140,40 @@ void FHoudiniPlusModule::ShutdownModule()
     //HAPI->Finalize();
 }
 
+void FHappyModule::StartSession(EHAPISessionType Type /*= EHAPISessionType::HST_Socket*/)
+{
+    StopSession();
+
+    switch (Type)
+    {
+    case EHAPISessionType::HST_InProcess:
+        Session = MakeShareable(new FHAPISession_InProcess);
+        break;
+
+    default:
+    case EHAPISessionType::HST_Socket:
+        Session = MakeShareable(new FHAPISession_Socket);
+        break;
+
+    case EHAPISessionType::HST_NamedPiped:
+        Session = MakeShareable(new FHAPISession_NamedPipe);
+        break;
+    }
+
+    ensure(Session->IsValid());
+
+    FHAPI::EnsureSuccess(Session->Start());
+}
+
+void FHappyModule::StopSession()
+{
+    if (Session.IsValid())
+    {
+        Session->Stop();
+        Session.Reset();
+    }
+}
+
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FHoudiniPlusModule, HoudiniPlus)
+IMPLEMENT_MODULE(FHappyModule, HappyModule)

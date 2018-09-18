@@ -1,6 +1,7 @@
-#include "HoudiniPlusPrivatePCH.h"
+#include "HappyPrivatePCH.h"
 
 #include "HAPI.h"
+#include "Status.h"
 
 FHAPIStatus& FHAPIStatus::operator=(const HAPI_StatusType Status)
 {
@@ -17,13 +18,13 @@ FORCEINLINE const FString FHAPIStatus::GetStatusString(const HAPI_StatusType Sta
 {
     return FHAPI::Get()->Call<FString>([&](auto Session) -> FString{
         auto StatusBufferLength = 0;
-        HAPI_GetStatusStringBufLength(Session, Status, Verbosity, &StatusBufferLength);
-
+        FHoudiniApi::GetStatusStringBufLength(Session, Status, Verbosity, &StatusBufferLength);
+        
         if (StatusBufferLength > 0)
         {
             TArray<char> StatusStringBuffer;
             StatusStringBuffer.SetNumZeroed(StatusBufferLength);
-            HAPI_GetStatusString(Session, Status, &StatusStringBuffer[0], StatusBufferLength);
+            FHoudiniApi::GetStatusString(Session, Status, &StatusStringBuffer[0], StatusBufferLength);
             return FString(UTF8_TO_TCHAR(&StatusStringBuffer[0]));
         }
 

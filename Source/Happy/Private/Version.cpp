@@ -1,6 +1,6 @@
-#include "HoudiniPlusPrivatePCH.h"
+#include "HappyPrivatePCH.h"
 
-#include "HAPI.h"
+#include "Version.h"
 
 FHAPIVersion::FHAPIVersion()
 {

@@ -3,9 +3,8 @@
 #include "ModuleInterface.h"
 #include "HAPI/HAPI_Common.h"
 
-class IHoudiniPlusModule
+class IHappyModule
     : public IModuleInterface
 {
 public:
-
 };

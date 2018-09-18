@@ -18,6 +18,11 @@
 			"Name": "HoudiniPlusEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "Happy",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }

@@ -1,9 +1,172 @@
 using UnrealBuildTool;
 using System;
 using System.IO;
+using System.Text;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
-public class HoudiniPlusEditor : ModuleRules
+public class Happy : ModuleRules
 {
+    public struct FunctionSignature
+    {
+        public string Description;
+        public string Name;
+        public List<string> Parameters;
+
+        public string GetParameterString()
+        {
+            return string.Join(", ", Parameters.ToArray()).Trim(',');
+        }
+    }
+
+    private List<FunctionSignature> GetFunctionsInHeader(string IncludeFile)
+    {
+        var Contents = File.ReadAllText(IncludeFile);
+
+        var EmptyLineRegex = new Regex(@"^\s*$", RegexOptions.Multiline);
+        var Split = EmptyLineRegex.Split(Contents);
+
+        var Result = new List<FunctionSignature>();
+
+        foreach (var S in Split)
+        {
+            var FunctionSignature = new FunctionSignature();
+            var Fragment = S.Trim();
+
+            if (Fragment.StartsWith("///"))
+            {
+                var FunctionRegex = new Regex(@"HAPI_DECL\s(?<Name>.*)\((?<Parameters>[\S\s]+)\);", RegexOptions.Multiline);
+                var Match = FunctionRegex.Match(Fragment);
+                if (!Match.Success)
+                    continue;
+
+                FunctionSignature.Description = Fragment.Substring(0, Match.Index);
+
+                foreach (Group Group in Match.Groups)
+                {
+                    if (Group.Name == "Name")
+                        FunctionSignature.Name = Group.Captures[0].Value.Trim().Remove(0, 5);
+
+                    if (Group.Name == "Parameters")
+                    {
+                        FunctionSignature.Parameters = new List<string>();
+
+                        var ParametersSplit = Group.Captures[0].Value.Split(',');
+                        foreach(var Parameter in ParametersSplit)
+                        {
+                            FunctionSignature.Parameters.Add(Parameter.Trim());
+                        }
+                    }
+                }
+
+                Result.Add(FunctionSignature);
+            }
+        }
+
+        return Result;
+    }
+
+    private string GenerateAPIHeader(List<FunctionSignature> Functions)
+    {
+        var HeaderTemplate = new StringBuilder();
+
+        HeaderTemplate.AppendLine("#pragma once;");
+        HeaderTemplate.AppendLine();
+        HeaderTemplate.AppendLine("#include \"HAPI/HAPI.h\"");
+        HeaderTemplate.AppendLine("#include \"HAL/PlatformProcess.h\"");
+        HeaderTemplate.AppendLine();
+        HeaderTemplate.AppendLine("struct HAPPY_API FHoudiniApi");
+        HeaderTemplate.AppendLine("{");
+        HeaderTemplate.AppendLine("public:");
+        HeaderTemplate.AppendLine("\tstatic void Bind(void* Handle);");
+        HeaderTemplate.AppendLine("\tstatic void Unbind();");
+        HeaderTemplate.AppendLine("\tstatic bool IsValid();");
+
+        HeaderTemplate.AppendLine();
+        HeaderTemplate.AppendLine("public:");
+        foreach(var Function in Functions)
+            HeaderTemplate.AppendFormat("   typedef HAPI_Result (*{0}FuncPtr)({1});{2}", Function.Name, Function.GetParameterString(), Environment.NewLine);
+        
+        HeaderTemplate.AppendLine();
+        HeaderTemplate.AppendLine("public:");
+        foreach (var Function in Functions)
+            HeaderTemplate.AppendFormat("   static {0}FuncPtr {0};{1}", Function.Name, Environment.NewLine);
+        
+        HeaderTemplate.AppendLine();
+        HeaderTemplate.AppendLine("public:");
+        foreach (var Function in Functions)
+            HeaderTemplate.AppendFormat("   static HAPI_Result {0}EmptyStub({1});{2}", Function.Name, Function.GetParameterString(), Environment.NewLine);
+
+        HeaderTemplate.AppendLine("};");
+
+        return HeaderTemplate.ToString();
+    }
+
+    private string GenerateAPICPP(List<FunctionSignature> Functions)
+    {
+        var CPPTemplate = new StringBuilder();
+
+        CPPTemplate.AppendLine("#include \"HappyPrivatePCH.h\"");
+        CPPTemplate.AppendLine("#include \"HoudiniAPI.h\"");
+        CPPTemplate.AppendLine();
+
+        foreach (var Function in Functions)
+        {
+            CPPTemplate.AppendFormat("FHoudiniApi::{0}FuncPtr FHoudiniApi::{0} = &FHoudiniApi::{0}EmptyStub;{1}", Function.Name, Environment.NewLine);
+            CPPTemplate.AppendLine();
+        }
+        
+        CPPTemplate.AppendLine("void FHoudiniApi::Bind(void* Handle)");
+        CPPTemplate.AppendLine("{");
+        CPPTemplate.AppendLine("    ensure(Handle);");
+        CPPTemplate.AppendLine();
+
+        foreach (var Function in Functions)
+            CPPTemplate.AppendFormat("  FHoudiniApi::{0} = ({0}FuncPtr)FPlatformProcess::GetDllExport(Handle, TEXT(\"HAPI_{0}\"));{1}", Function.Name, Environment.NewLine);
+        
+        CPPTemplate.AppendLine("}");
+
+        CPPTemplate.AppendLine();
+        
+        CPPTemplate.AppendLine("void FHoudiniApi::Unbind()");
+        CPPTemplate.AppendLine("{");
+
+        foreach (var Function in Functions)
+            CPPTemplate.AppendFormat("  FHoudiniApi::{0} = &FHoudiniApi::{0}EmptyStub;{1}", Function.Name, Environment.NewLine);
+
+        CPPTemplate.AppendLine("}");
+
+        CPPTemplate.AppendLine();
+
+        foreach (var Function in Functions)
+        {
+            CPPTemplate.AppendFormat("HAPI_Result FHoudiniApi::{0}EmptyStub({1}){2}", Function.Name, Function.GetParameterString(), Environment.NewLine);
+            CPPTemplate.AppendLine("{");
+            CPPTemplate.AppendLine("    return HAPI_RESULT_FAILURE;");
+            CPPTemplate.AppendLine("}");
+            CPPTemplate.AppendLine();
+        }
+        
+        return CPPTemplate.ToString();
+    }
+
+    private void GenerateAPI(string IncludePath, string OutputRoot)
+    {
+        if (!Directory.Exists(IncludePath))
+            throw new Exception("IncludePath not found.");
+
+        if (!Directory.Exists(OutputRoot))
+            throw new Exception("OutputRoot not found.");
+
+        var HeaderPath = Path.Combine(OutputRoot, "Public", "HoudiniAPI.h");
+        var CPPPath = Path.Combine(OutputRoot, "Private", "HoudiniAPI.cpp");
+
+        var Functions = GetFunctionsInHeader(Path.Combine(IncludePath, "HAPI", "HAPI.h"));
+
+        File.WriteAllText(HeaderPath, GenerateAPIHeader(Functions));
+        File.WriteAllText(CPPPath, GenerateAPICPP(Functions));
+    }
+
     private string GetLibFolder()
     {
         PlatformID BuildPlatformId = Environment.OSVersion.Platform;
@@ -172,7 +335,7 @@ public class HoudiniPlusEditor : ModuleRules
         return string.Empty;
     }
 
-    public HoudiniPlusEditor(ReadOnlyTargetRules Target) : base(Target)
+    public Happy(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseSharedPCHs;
 
@@ -222,12 +385,12 @@ public class HoudiniPlusEditor : ModuleRules
 
         PublicIncludePaths.AddRange(
 			new string[] {
-				"HoudiniPlusEditor/Public"
+				"Happy/Public"
 			});
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"HoudiniPlusEditor/Private",
+				"Happy/Private",
 			});
 
         PrivateIncludePathModuleNames.AddRange(
@@ -241,38 +404,14 @@ public class HoudiniPlusEditor : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
-                "Foliage",
-                "InputCore",
-                "Landscape",
-                "RenderCore",
-                "RHI",
-                "ShaderCore",
-
+				
                 "Slate",
                 "SlateCore",
-
-                "Happy"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                "AppFramework",
-                "ApplicationCore",
-                "AssetTools",
-                "ContentBrowser",
-                "DesktopWidgets",
-                "EditorStyle",
-                "EditorWidgets",
-                "LevelEditor",
-                "MainFrame",
-                "Projects",
-                "PropertyEditor",
-                "RawMesh",
-                "Settings",
-                "Slate",
-                "SlateCore",
-                "TargetPlatform",
                 "UnrealEd",
 			});
 
@@ -283,12 +422,15 @@ public class HoudiniPlusEditor : ModuleRules
 
         var HAPILibPath = Path.Combine(HFSPath, GetLibFolder(), GetLibName());
         HAPILibPath = HAPILibPath.Replace("\\", "/");
-        if (!File.Exists(HAPILibPath))
+        if(!File.Exists(HAPILibPath))
             throw new Exception(string.Format("Couldn't find the HAPI lib!"));
         else
         {
+            PublicDefinitions.Add("HAPI_LIB_PATH=" + HAPILibPath);
             PublicDelayLoadDLLs.Add(GetLibName());
             RuntimeDependencies.Add(HAPILibPath);
         }
-    }
+
+        GenerateAPI(HAPIIncludePath, ModuleDirectory);
+	}
 }
